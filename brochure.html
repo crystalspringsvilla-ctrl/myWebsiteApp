@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 0; }
+  *{box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{margin:0; font-family:'Liberation Sans',Arial,sans-serif; color:#16241C;}
+
+  :root{
+    --ink:#16241C; --moss:#2F4A3B; --moss-deep:#203327;
+    --stone:#B9A17E; --stone-light:#E4D9C2;
+    --spring:#8FCFC0; --spring-deep:#4F9C8C;
+    --cream:#F4F1E8; --paper:#FBF9F3;
+  }
+
+  .page{ width:210mm; height:297mm; position:relative; overflow:hidden; page-break-after:always; }
+  .page:last-child{ page-break-after:auto; }
+
+  h1,h2,h3{ font-family:'Liberation Serif',Georgia,serif; font-weight:normal; margin:0; }
+  .eyebrow{ font-family:'Liberation Mono',monospace; font-size:10.5px; letter-spacing:2px; text-transform:uppercase; }
+
+  /* ---------- Cover ---------- */
+  .cover{ background:#16241C; }
+  .cover-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .cover-scrim{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(22,36,28,0.25) 0%, rgba(22,36,28,0.35) 45%, rgba(22,36,28,0.96) 88%); }
+  .cover-content{ position:absolute; left:0; right:0; bottom:0; padding:20mm 18mm 16mm; color:#FBF9F3; }
+  .cover-content .eyebrow{ color:#8FCFC0; margin-bottom:8mm; }
+  .cover-content h1{ font-size:52px; line-height:1.05; margin-bottom:6mm; color:#FBF9F3; }
+  .cover-sub{ font-size:14px; color:rgba(251,249,243,0.82); max-width:110mm; margin-bottom:12mm; }
+  .cover-meta{ display:flex; gap:14mm; border-top:1px solid rgba(255,255,255,0.25); padding-top:6mm; }
+  .cover-meta div{ font-size:11px; }
+  .cover-meta .lbl{ font-family:'Liberation Mono',monospace; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:#8FCFC0; display:block; margin-bottom:2mm; }
+
+  /* ---------- Generic inner page ---------- */
+  .inner{ padding:16mm 16mm; }
+  .kicker{ font-family:'Liberation Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#4F9C8C; margin-bottom:4mm; }
+  h2.title{ font-size:30px; margin-bottom:8mm; max-width:20ch; }
+
+  /* ---------- Page 2: Story ---------- */
+  .story-page{ background:#FBF9F3; }
+  .story-layout{ display:flex; gap:10mm; }
+  .story-text{ flex:1.15; }
+  .story-text p{ font-size:12.5px; line-height:1.7; color:rgba(22,36,28,0.78); margin:0 0 5mm; }
+  .story-facts{ display:flex; gap:10mm; margin-top:8mm; }
+  .story-facts .num{ font-family:'Liberation Serif',serif; font-size:24px; color:#2F4A3B; display:block; }
+  .story-facts .lbl{ font-size:10px; color:rgba(22,36,28,0.6); }
+  .story-img{ flex:0.85; }
+  .story-img img{ width:100%; height:120mm; object-fit:cover; border-radius:2px; }
+  .story-img .cap{ font-family:'Liberation Mono',monospace; font-size:9px; color:rgba(22,36,28,0.55); margin-top:3mm; }
+  .story-img2{ margin-top:5mm; }
+  .story-img2 img{ width:100%; height:52mm; object-fit:cover; border-radius:2px; }
+
+  /* ---------- Page 3: Rooms ---------- */
+  .rooms-page{ background:#203327; color:#FBF9F3; }
+  .rooms-page .kicker{ color:#8FCFC0; }
+  .rooms-page h2.title{ color:#FBF9F3; }
+  .room-row{ display:flex; gap:8mm; margin-bottom:8mm; align-items:stretch; }
+  .room-row img{ width:62mm; height:42mm; object-fit:cover; border-radius:2px; flex-shrink:0; }
+  .room-text h3{ font-size:17px; color:#FBF9F3; margin-bottom:2mm; }
+  .room-text .idx{ font-family:'Liberation Mono',monospace; font-size:9px; letter-spacing:1.5px; color:#8FCFC0; text-transform:uppercase; }
+  .room-text p{ font-size:11.5px; color:rgba(251,249,243,0.75); margin:2mm 0 0; max-width:95mm; line-height:1.6; }
+
+  /* ---------- Page 4: Amenities + Nearby ---------- */
+  .amenities-page{ background:#FBF9F3; }
+  .amenity-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:6mm 10mm; margin-bottom:12mm; }
+  .amenity-item{ border-top:1px solid rgba(22,36,28,0.15); padding-top:3mm; }
+  .amenity-item h4{ font-size:12.5px; margin:0 0 1.5mm; font-family:'Liberation Serif',serif; font-weight:normal; }
+  .amenity-item p{ font-size:10.5px; color:rgba(22,36,28,0.65); margin:0; line-height:1.5; }
+  .nearby-strip{ display:flex; gap:6mm; margin-top:6mm; }
+  .nearby-item{ flex:1; background:#E4D9C2; padding:6mm; border-radius:2px; }
+  .nearby-item h4{ font-family:'Liberation Serif',serif; font-weight:normal; font-size:11.5px; margin:0 0 2mm; }
+  .nearby-item p{ font-size:9.5px; color:rgba(22,36,28,0.7); margin:0; line-height:1.5; }
+
+  /* ---------- Page 5: Rates + contact ---------- */
+  .rates-page{ background:#2F4A3B; color:#FBF9F3; }
+  .rates-page .kicker{ color:#8FCFC0; }
+  .rates-page h2.title{ color:#FBF9F3; }
+  .rate-cards{ display:flex; gap:6mm; margin-bottom:10mm; }
+  .rate-card{ flex:1; background:rgba(251,249,243,0.06); border:1px solid rgba(255,255,255,0.15); padding:8mm 6mm; border-radius:2px; }
+  .rate-card.featured{ background:rgba(143,207,192,0.15); border-color:#8FCFC0; }
+  .rate-card .days{ font-family:'Liberation Mono',monospace; font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:rgba(251,249,243,0.7); display:block; margin-bottom:3mm; }
+  .rate-card .price{ font-family:'Liberation Serif',serif; font-size:26px; color:#8FCFC0; display:block; }
+  .rate-card .unit{ font-size:9.5px; color:rgba(251,249,243,0.65); }
+  .extra-row{ display:flex; gap:6mm; margin-bottom:12mm; }
+  .extra-item{ flex:1; border-top:1px solid rgba(255,255,255,0.2); padding-top:3mm; }
+  .extra-item h4{ font-family:'Liberation Serif',serif; font-weight:normal; font-size:12.5px; margin:0 0 2mm; }
+  .extra-item p{ font-size:10px; color:rgba(251,249,243,0.7); margin:0; line-height:1.5; }
+  .contact-block{ background:#16241C; padding:10mm; border-radius:2px; margin-top:auto; }
+  .contact-block h3{ color:#FBF9F3; font-size:16px; margin-bottom:5mm; }
+  .contact-line{ font-size:12px; margin-bottom:3mm; color:rgba(251,249,243,0.85); }
+  .contact-line .lbl{ font-family:'Liberation Mono',monospace; font-size:8.5px; letter-spacing:1.5px; text-transform:uppercase; color:#8FCFC0; display:block; margin-bottom:1mm; }
+  .rates-inner{ padding:16mm 16mm; display:flex; flex-direction:column; height:100%; }
+  .footer-note{ font-size:9px; color:rgba(251,249,243,0.5); margin-top:8mm; text-align:center; }
+  .brochure-reviews{ display:flex; gap:6mm; margin-bottom:10mm; }
+  .brochure-review{ flex:1; background:rgba(251,249,243,0.06); border-left:2px solid #8FCFC0; padding:5mm 6mm; }
+  .brochure-review .stars{ color:#8FCFC0; letter-spacing:2px; font-size:11px; display:block; margin-bottom:2mm; }
+  .brochure-review p{ font-family:'Liberation Serif',serif; font-size:11px; line-height:1.55; color:rgba(251,249,243,0.9); margin:0 0 2mm; }
+  .brochure-review cite{ font-family:'Liberation Mono',monospace; font-size:8.5px; color:rgba(251,249,243,0.55); font-style:normal; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="page cover">
+  <img class="cover-img" src="images/exterior-wide.jpg" alt="">
+  <div class="cover-scrim"></div>
+  <div class="cover-content">
+    <span class="eyebrow">Sahyadri foothills · Karjat, Maharashtra</span>
+    <h1>Crystal Springs Villa</h1>
+    <p class="cover-sub">A private 3-bedroom villa with its own spring-fed pool, roughly two hours from Mumbai — built for slow mornings and long tables.</p>
+    <div class="cover-meta">
+      <div><span class="lbl">Sleeps</span>8 guests</div>
+      <div><span class="lbl">Bedrooms</span>3, all en suite</div>
+      <div><span class="lbl">Pool</span>23×18 ft + kids' pool</div>
+      <div><span class="lbl">Contact</span>+91 85919 97793</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STORY ============ -->
+<div class="page story-page">
+  <div class="inner">
+    <p class="kicker">The villa</p>
+    <h2 class="title">Built for slow mornings<br>and long tables.</h2>
+    <div class="story-layout">
+      <div class="story-text">
+        <p>Crystal Springs sits off the Varai road outside Karjat, where the Sahyadri range flattens into farmland and the air stays several degrees cooler than the city. The villa is entirely yours for the length of your stay — no shared corridors, no other bookings on the property.</p>
+        <p>Glass-walled rooms open onto a wraparound patio; a hammock catches the morning light outside one bedroom, a private balcony outside another. Downstairs, the pool's small waterfall runs quietly enough to hear the birds over it.</p>
+        <p>Everything a group actually uses is here: a private pool and jacuzzi, a full game zone, open-air dining, gardens, and a kitchen team that handles every meal so you don't have to.</p>
+        <div class="story-facts">
+          <div><span class="num">53 km</span><span class="lbl">from Mumbai airport</span></div>
+          <div><span class="num">3</span><span class="lbl">air-conditioned bedrooms</span></div>
+          <div><span class="num">4</span><span class="lbl">bathrooms, 3 en suite</span></div>
+        </div>
+      </div>
+      <div class="story-img">
+        <img src="images/pool-evening.jpg" alt="">
+        <p class="cap">Private pool, lit for the evening</p>
+        <div class="story-img2"><img src="images/garden.jpg" alt=""></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ROOMS ============ -->
+<div class="page rooms-page">
+  <div class="inner">
+    <p class="kicker">Sleeping arrangements</p>
+    <h2 class="title">Three rooms, each<br>a little different.</h2>
+
+    <div class="room-row">
+      <img src="images/bedroom-1.jpg" alt="">
+      <div class="room-text">
+        <span class="idx">Bedroom 01</span>
+        <h3>The Hammock Room</h3>
+        <p>First floor, queen bed, en suite bathroom, and direct access to a large hammock just outside the door.</p>
+      </div>
+    </div>
+
+    <div class="room-row">
+      <img src="images/bedroom-2.jpg" alt="">
+      <div class="room-text">
+        <span class="idx">Bedroom 02</span>
+        <h3>The Balcony Room</h3>
+        <p>First floor, queen bed, en suite bathroom, with a spacious balcony and patio for slow mornings.</p>
+      </div>
+    </div>
+
+    <div class="room-row">
+      <img src="images/bathroom.jpg" alt="">
+      <div class="room-text">
+        <span class="idx">Bedroom 03 &amp; Bathrooms</span>
+        <h3>The Garden Room</h3>
+        <p>Ground floor, queen bed plus a bunk for two more guests, en suite bathroom — closest to the pool and lawn. All bathrooms are finished to the same standard shown here.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AMENITIES + NEARBY ============ -->
+<div class="page amenities-page">
+  <div class="inner">
+    <p class="kicker">On the property</p>
+    <h2 class="title">Everything a group<br>actually uses.</h2>
+    <div class="amenity-grid">
+      <div class="amenity-item"><h4>Private pool &amp; waterfall</h4><p>23×18 ft main pool, 4.5 ft deep, with a mini waterfall; a 9×6 ft kids' pool alongside.</p></div>
+      <div class="amenity-item"><h4>Couple-friendly jacuzzi</h4><p>A dedicated hot tub, part of the villa's original architectural design.</p></div>
+      <div class="amenity-item"><h4>Game zone</h4><p>Table tennis, carrom, and air hockey, with air coolers to keep the room comfortable.</p></div>
+      <div class="amenity-item"><h4>Open-air dining</h4><p>A six-seater table outdoors, with a fireplace nearby for cooler evenings.</p></div>
+      <div class="amenity-item"><h4>Garden, lawn &amp; gazebo</h4><p>Expansive lawns and lush gardens surrounding the villa, with a gazebo for shade.</p></div>
+      <div class="amenity-item"><h4>Free Wi-Fi</h4><p>Reliable coverage across the villa, indoors and out.</p></div>
+      <div class="amenity-item"><h4>Parking &amp; EV charging</h4><p>Private on-site parking, including an electric-vehicle charging point.</p></div>
+      <div class="amenity-item"><h4>Pet friendly</h4><p>Pets are welcome, with dedicated services to make their stay easy too.</p></div>
+    </div>
+
+    <p class="kicker">Beyond the gate</p>
+    <h2 class="title" style="font-size:22px;">Karjat, at your own pace.</h2>
+    <div class="nearby-strip">
+      <div class="nearby-item"><h4>Bhivgad / Bheemgad Fort</h4><p>A hill fort roughly 3 km away, popular with early-morning trekkers.</p></div>
+      <div class="nearby-item"><h4>Pali Bhutivali Dam</h4><p>About 4.4 km from the villa — a quiet spot for an evening walk.</p></div>
+      <div class="nearby-item"><h4>Karjat Railway Station</h4><p>Roughly 4 km, with direct trains to Mumbai.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RATES + CONTACT ============ -->
+<div class="page rates-page">
+  <div class="rates-inner">
+    <p class="kicker">Villa charges</p>
+    <h2 class="title">Simple, day-based<br>pricing.</h2>
+
+    <div class="rate-cards">
+      <div class="rate-card">
+        <span class="days">Mon – Thu</span>
+        <span class="price">₹7,500</span>
+        <span class="unit">per night, up to 6 guests</span>
+      </div>
+      <div class="rate-card featured">
+        <span class="days">Fri &amp; Sat</span>
+        <span class="price">₹21,500</span>
+        <span class="unit">per night, up to 6 guests</span>
+      </div>
+      <div class="rate-card">
+        <span class="days">Sunday</span>
+        <span class="price">₹10,500</span>
+        <span class="unit">per night, up to 6 guests</span>
+      </div>
+    </div>
+
+    <div class="extra-row">
+      <div class="extra-item"><h4>Extra guests</h4><p>₹1,180 per adult, per night, beyond 6 adults.</p></div>
+      <div class="extra-item"><h4>Food</h4><p>₹1,200 per person, per day — breakfast, lunch, hi-tea &amp; dinner, veg and non-veg, custom menus possible.</p></div>
+      <div class="extra-item"><h4>BBQ</h4><p>₹1,200 per kg, veg or non-veg.</p></div>
+    </div>
+
+    <p class="kicker">What guests say</p>
+    <div class="brochure-reviews">
+      <div class="brochure-review">
+        <span class="stars">★★★★★</span>
+        <p>Warm, attentive staff and food that was fresh and beautifully prepared — great value for a family gathering.</p>
+        <cite>— Google Review</cite>
+      </div>
+      <div class="brochure-review">
+        <span class="stars">★★★★★</span>
+        <p>An unforgettable stay — the views and the sleek, modern architecture make the villa feel completely unique.</p>
+        <cite>— Google Review</cite>
+      </div>
+    </div>
+
+    <div class="contact-block">
+      <h3>Ready to book?</h3>
+      <div class="contact-line"><span class="lbl">Call or WhatsApp</span>+91 85919 97793</div>
+      <div class="contact-line"><span class="lbl">Instagram</span>@crystal_springs_villa</div>
+      <div class="contact-line"><span class="lbl">Address</span>Varai Road, near Lakhan Phata, Karjat, Maharashtra 410201</div>
+      <div class="contact-line"><span class="lbl">Check-in / Check-out</span>1:00 PM – 11:00 AM</div>
+    </div>
+    <p class="footer-note">Crystal Springs Villa — independently managed.</p>
+  </div>
+</div>
+
+</body>
+</html>
