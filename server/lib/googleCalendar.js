@@ -94,3 +94,47 @@ async function getBusyRanges() {
 }
 
 module.exports = { getBusyRanges, ICS_URL };
+
+/**
+ * Optionally creates an all-day blocking event on the configured calendar.
+ * Expects environment variable `GOOGLE_SERVICE_ACCOUNT_JSON` to contain the
+ * service account JSON (stringified) with access to the calendar, and
+ * `GOOGLE_CALENDAR_ID` to target the calendar.
+ * Returns { ok: true, event } on success, or { ok: false, error } on failure.
+ */
+async function createBlockingEvent({ startDate, endDate, summary }) {
+  const svcJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const calendarId = process.env.GOOGLE_CALENDAR_ID;
+  if (!svcJson || !calendarId) {
+    return { ok: false, error: 'Google Calendar service account or calendar ID not configured.' };
+  }
+
+  try {
+    const { google } = require('googleapis');
+    const key = typeof svcJson === 'string' ? JSON.parse(svcJson) : svcJson;
+    const jwtClient = new google.auth.JWT(
+      key.client_email,
+      null,
+      key.private_key,
+      ['https://www.googleapis.com/auth/calendar']
+    );
+    await jwtClient.authorize();
+    const calendar = google.calendar({ version: 'v3', auth: jwtClient });
+
+    const event = {
+      summary: summary || 'Booked — Crystal Springs Villa',
+      start: { date: startDate },
+      end: { date: endDate },
+      transparency: 'opaque',
+      description: 'Blocked by booking from the website (paid).',
+    };
+
+    const res = await calendar.events.insert({ calendarId, requestBody: event });
+    return { ok: true, event: res.data };
+  } catch (err) {
+    console.error('[googleCalendar] could not create event:', err.message || err);
+    return { ok: false, error: err.message || String(err) };
+  }
+}
+
+module.exports = { getBusyRanges, ICS_URL, createBlockingEvent };

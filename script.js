@@ -158,6 +158,10 @@ const bookState = {
   checkout: null,
 };
 
+function getApiBase(){
+  return (CONFIG.apiBase || (window.location.origin && window.location.origin !== 'null' ? window.location.origin : '')).replace(/\/$/, '');
+}
+
 function ymd(d){ return d.toISOString().slice(0,10); }
 function isBlocked(dateStr){
   return bookState.blocked.some(r => dateStr >= r.start && dateStr < r.end);
@@ -174,9 +178,15 @@ function anyBlockedBetween(a, b){
 }
 
 async function loadAvailability(){
-  if (!CONFIG.apiBase) return; // no backend yet — calendar just shows everything as open
+  const apiBase = getApiBase();
+  if (!apiBase) {
+    console.warn('No backend URL available; availability will stay open until the site is served from a local/server origin.');
+    renderCalendar();
+    return;
+  }
+
   try {
-    const res = await fetch(`${CONFIG.apiBase}/api/availability`);
+    const res = await fetch(`${apiBase}/api/availability`);
     const data = await res.json();
     bookState.blocked = data.blocked || [];
   } catch (err) {
@@ -280,10 +290,85 @@ function clientQuote({ checkin, checkout, guests, wantFood, bbqKg }){
   const extraAmount = extraGuests * EXTRA_GUEST_NIGHT * nights;
   const foodAmount = wantFood ? guests * FOOD_PER_DAY * nights : 0;
   const bbqAmount = (bbqKg || 0) * BBQ_PER_KG;
-  return { nights, base, extraGuests, extraAmount, foodAmount, bbqAmount, total: base + extraAmount + foodAmount + bbqAmount };
+  const total = base + extraAmount + foodAmount + bbqAmount;
+  return { nights, base, extraGuests, extraAmount, foodAmount, bbqAmount, total, originalTotalAmount: total, discountAmount: 0, totalAmount: total };
 }
 
 function money(n){ return '₹' + Number(n).toLocaleString('en-IN'); }
+
+function formatDateYMD(ymd) {
+  if (!ymd) return '—';
+  try {
+    const d = new Date(ymd + 'T00:00:00');
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch (e) { return ymd; }
+}
+
+function displayMoney(amount) {
+  if (amount == null) return money(0);
+  let v = Number(amount);
+  // If value looks like paise (very large), convert to rupees
+  if (v > 100000) v = v / 100;
+  return money(v);
+}
+
+function showReceipt(data){
+  const box = document.getElementById('receiptBox');
+  const content = document.getElementById('receiptContent');
+  if (!box || !content) return;
+
+  const notificationText = [];
+  if (data.notifications) {
+    if (data.notifications.email) {
+      notificationText.push(data.notifications.email.ok ? 'Email sent' : 'Email not sent');
+    } else if (data.email) {
+      notificationText.push('Email not sent');
+    }
+    if (data.notifications.whatsapp) {
+      notificationText.push(data.notifications.whatsapp.ok ? 'WhatsApp sent' : 'WhatsApp not sent');
+    } else if (data.phone) {
+      notificationText.push('WhatsApp not sent');
+    }
+  } else {
+    if (data.email || data.phone) notificationText.push('Receipt delivery pending');
+    else notificationText.push('No email or WhatsApp provided');
+  }
+
+  const rows = [
+    ['Receipt type', 'Booking payment confirmation'],
+    ['Delivery status', notificationText.join(' · ')],
+    ['Guest name', data.guestName || '—'],
+    ['Booking ID', data.bookingId || '—'],
+    ['Payment ID', data.paymentId || '—'],
+    ['Check-in', data.checkin || '—'],
+    ['Check-out', data.checkout || '—'],
+    ['Amount paid', displayMoney(data.amountPaid || 0)],
+    ['Coupon', data.couponCode ? data.couponCode : 'None'],
+    ['Email', data.email || '—'],
+    ['Phone', data.phone || '—'],
+  ];
+  if (notificationText.length) {
+    rows.push(['Notifications', notificationText.join(' · ')]);
+  }
+
+  content.innerHTML = rows.map(([label, value]) => `<div class="receipt-row"><span>${label}</span><strong>${value}</strong></div>`).join('');
+  box.hidden = false;
+  // hide the booking form to emphasize the receipt
+  const form = document.getElementById('bookForm');
+  if (form) form.style.display = 'none';
+  // wire the Close button to restore the form
+  const closeBtn = document.getElementById('closeReceiptBtn');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      box.hidden = true;
+      if (form) form.style.display = '';
+      // scroll back to booking form
+      setTimeout(() => document.getElementById('bookForm').scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    };
+  }
+  // scroll receipt into view
+  setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+}
 
 let quoteAbortCtrl = null;
 async function updateQuote(){
@@ -293,6 +378,7 @@ async function updateQuote(){
   const guests = Number(document.getElementById('guestsInput').value) || BASE_GUESTS;
   const wantFood = document.getElementById('wantFoodInput').checked;
   const bbqKg = Number(document.getElementById('bbqKgInput').value) || 0;
+  const couponCode = document.getElementById('couponInput').value.trim().toUpperCase();
 
   if (!checkin || !checkout) {
     box.innerHTML = '<p class="quote-placeholder">Select your dates above to see a price.</p>';
@@ -302,18 +388,31 @@ async function updateQuote(){
 
   // Try the authoritative server quote (also re-checks availability); fall back to a client estimate.
   let quote = null, available = true, usedServer = false;
-  if (CONFIG.apiBase) {
+  const apiBase = getApiBase();
+  if (apiBase) {
     try {
       if (quoteAbortCtrl) quoteAbortCtrl.abort();
       quoteAbortCtrl = new AbortController();
-      const res = await fetch(`${CONFIG.apiBase}/api/booking/quote`, {
+      const res = await fetch(`${apiBase}/api/booking/quote`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkin, checkout, guests, wantFood, bbqKg }),
+        body: JSON.stringify({ checkin, checkout, guests, wantFood, bbqKg, couponCode }),
         signal: quoteAbortCtrl.signal,
       });
       const data = await res.json();
       if (res.ok) {
-        quote = { nights: data.nights, base: data.baseAmount, extraGuests: data.extraGuests, extraAmount: data.extraGuestAmount, foodAmount: data.foodAmount, bbqAmount: data.bbqAmount, total: data.totalAmount };
+        quote = {
+          nights: data.nights,
+          base: data.baseAmount,
+          extraGuests: data.extraGuests,
+          extraAmount: data.extraGuestAmount,
+          foodAmount: data.foodAmount,
+          bbqAmount: data.bbqAmount,
+          total: data.totalAmount,
+          originalTotalAmount: data.originalTotalAmount,
+          discountAmount: data.discountAmount || 0,
+          couponCode: data.couponCode || null,
+          totalAmount: data.totalAmount,
+        };
         available = data.available;
         usedServer = true;
       }
@@ -322,23 +421,35 @@ async function updateQuote(){
   if (!quote) quote = clientQuote({ checkin, checkout, guests, wantFood, bbqKg });
   if (!quote) return;
 
+  const payableAmount = quote.totalAmount ?? quote.total;
+  const originalAmount = quote.originalTotalAmount ?? (payableAmount + (quote.discountAmount || 0));
   box.innerHTML = `
     <div class="quote-row"><span>${quote.nights} night${quote.nights > 1 ? 's' : ''}</span><span>${money(quote.base)}</span></div>
     ${quote.extraGuests > 0 ? `<div class="quote-row"><span>Extra guests (${quote.extraGuests})</span><span>${money(quote.extraAmount)}</span></div>` : ''}
     ${quote.foodAmount > 0 ? `<div class="quote-row"><span>Food package</span><span>${money(quote.foodAmount)}</span></div>` : ''}
     ${quote.bbqAmount > 0 ? `<div class="quote-row"><span>BBQ</span><span>${money(quote.bbqAmount)}</span></div>` : ''}
-    <div class="quote-row total"><span>Total</span><span>${money(quote.total)}</span></div>
+    ${quote.discountAmount > 0 ? `<div class="quote-row"><span>Coupon discount ${quote.couponCode ? '(' + quote.couponCode + ')' : ''}</span><span>-${money(quote.discountAmount)}</span></div>` : ''}
+    ${quote.discountAmount > 0 ? `<div class="quote-row"><span>Original total</span><span>${money(originalAmount)}</span></div>` : ''}
+    <div class="quote-row total"><span>Payable total</span><span>${money(payableAmount)}</span></div>
     ${!usedServer ? '<p class="quote-placeholder" style="margin-top:8px;">Estimate only — connect the backend for live availability &amp; online payment.</p>' : ''}
     ${usedServer && !available ? '<p class="quote-error">Those dates just became unavailable — please pick another range.</p>' : ''}
   `;
   payBtn.disabled = !(usedServer && available);
 }
-['guestsInput','wantFoodInput','bbqKgInput'].forEach(id => {
+['guestsInput','wantFoodInput','bbqKgInput','couponInput'].forEach(id => {
   document.getElementById(id).addEventListener('input', updateQuote);
   document.getElementById(id).addEventListener('change', updateQuote);
 });
 
 // ---------- Pay & confirm booking (Razorpay Checkout) ----------
+document.getElementById('printReceiptBtn').addEventListener('click', () => {
+  document.body.classList.add('receipt-print-active');
+  window.print();
+  window.onafterprint = () => {
+    document.body.classList.remove('receipt-print-active');
+  };
+});
+
 document.getElementById('payBtn').addEventListener('click', async () => {
   const form = document.getElementById('bookForm');
   const f = new FormData(form);
@@ -348,23 +459,26 @@ document.getElementById('payBtn').addEventListener('click', async () => {
     guests: Number(f.get('guests')) || BASE_GUESTS,
     wantFood: document.getElementById('wantFoodInput').checked,
     bbqKg: Number(f.get('bbqKg')) || 0,
+    couponCode: (f.get('couponCode') || '').toString().trim().toUpperCase(),
     name: f.get('name'),
     phone: f.get('phone'),
     email: f.get('email'),
     notes: f.get('message'),
   };
   if (!payload.name || !payload.phone) { alert('Please fill in your name and phone number first.'); return; }
-  if (!CONFIG.apiBase) { alert('Online payment isn\'t connected yet — please use the WhatsApp option below.'); return; }
+
+  const apiBase = getApiBase();
+  if (!apiBase) { alert('Online payment isn\'t connected yet — please use the WhatsApp option below.'); return; }
 
   const payBtn = document.getElementById('payBtn');
   payBtn.disabled = true;
   payBtn.querySelector('span').textContent = 'Preparing checkout…';
 
   try {
-    const res = await fetch(`${CONFIG.apiBase}/api/booking/create-order`, {
+    const res = await fetch(`${apiBase}/api/booking/create-order`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
-    const order = await res.json();
+    const order = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(order.error || 'Could not start checkout.');
 
     const rzp = new Razorpay({
@@ -378,7 +492,7 @@ document.getElementById('payBtn').addEventListener('click', async () => {
       theme: { color: '#2F4A3B' },
       handler: async function (response) {
         try {
-          const verifyRes = await fetch(`${CONFIG.apiBase}/api/booking/verify`, {
+          const verifyRes = await fetch(`${apiBase}/api/booking/verify`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               bookingId: order.bookingId,
@@ -390,6 +504,18 @@ document.getElementById('payBtn').addEventListener('click', async () => {
           const verifyData = await verifyRes.json();
           if (verifyRes.ok && verifyData.success) {
             document.getElementById('quoteBox').innerHTML = '<p class="quote-row total"><span>Booked! 🎉</span></p><p class="quote-placeholder">A confirmation has been recorded — we\'ll also reach out on WhatsApp shortly.</p>';
+            showReceipt({
+              bookingId: verifyData.booking?.id || order.bookingId,
+              paymentId: response.razorpay_payment_id,
+              guestName: payload.name,
+              checkin: bookState.checkin,
+              checkout: bookState.checkout,
+              amountPaid: verifyData.booking?.total_amount ?? order.quote?.totalAmount ?? order.quote?.total ?? 0,
+              couponCode: (verifyData.booking && verifyData.booking.coupon_code) || order.quote?.couponCode || payload.couponCode || '',
+              email: payload.email,
+              phone: payload.phone,
+              notifications: verifyData.notifications || null,
+            });
             loadAvailability();
           } else {
             alert('Payment succeeded but we could not confirm the booking automatically — please message us on WhatsApp with your payment ID: ' + response.razorpay_payment_id);
@@ -430,6 +556,7 @@ document.getElementById('bookForm').addEventListener('submit', (e) => {
   const phone = f.get('phone');
   const wantFood = document.getElementById('wantFoodInput').checked;
   const bbqKg = f.get('bbqKg');
+  const couponCode = (f.get('couponCode') || '').toString().trim().toUpperCase();
   const message = f.get('message');
 
   if (checkin && checkout && checkout <= checkin) {
@@ -445,6 +572,7 @@ document.getElementById('bookForm').addEventListener('submit', (e) => {
     `Guests: ${guests}`,
     wantFood ? 'Food package: yes' : null,
     bbqKg && Number(bbqKg) > 0 ? `BBQ: ${bbqKg} kg` : null,
+    couponCode ? `Coupon: ${couponCode}` : null,
     `My contact: ${phone}`,
     message ? `Notes: ${message}` : null
   ].filter(Boolean).join('\n');

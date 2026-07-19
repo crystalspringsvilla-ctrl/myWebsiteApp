@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 
@@ -22,7 +23,12 @@ app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoute
 
 app.use(express.json());
 
-app.get('/', (req, res) => res.json({ ok: true, service: 'crystal-springs-villa-backend' }));
+const rootDir = path.join(__dirname, '..');
+app.use(express.static(rootDir));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(rootDir, 'index.html'));
+});
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/availability', availabilityRoutes);

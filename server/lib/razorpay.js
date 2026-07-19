@@ -5,15 +5,21 @@ if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
   console.warn('[razorpay] RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are not set yet — payments will fail until they are.');
 }
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    })
+  : null;
 
 /**
  * Creates a Razorpay order. Amount must be in paise (INR * 100).
  */
 async function createOrder({ amountInRupees, receipt, notes }) {
+  if (!razorpay) {
+    throw new Error('Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to enable payments.');
+  }
+
   return razorpay.orders.create({
     amount: Math.round(amountInRupees * 100),
     currency: 'INR',

@@ -422,6 +422,21 @@ img{max-width:100%;display:block;}
 .quote-row.total{border-top:1px solid rgba(22,36,28,0.15);margin-top:6px;padding-top:10px;font-family:'Fraunces',serif;font-size:1.15rem;color:var(--ink);}
 .quote-error{color:#a24a3e;margin:0;}
 
+.receipt-box{background:var(--paper);border:1px solid rgba(22,36,28,0.12);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:0 10px 24px rgba(22,36,28,0.06);}
+.receipt-head{font-family:'Fraunces',serif;font-size:1rem;color:var(--moss);margin-bottom:10px;}
+.receipt-body{display:grid;gap:8px;font-size:.84rem;color:var(--ink-soft);} 
+.receipt-row{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dashed rgba(22,36,28,0.12);} 
+.receipt-row:last-child{border-bottom:none;} 
+.receipt-row strong{color:var(--ink);} 
+
+@media print {
+  body * { visibility: hidden !important; }
+  #receiptBox, #receiptBox * { visibility: visible !important; }
+  #receiptBox { position: absolute !important; left: 0; top: 0; width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  #receiptBox .receipt-box { box-shadow: none !important; border: none !important; background: transparent !important; }
+  #printReceiptBtn, #closeReceiptBtn { display: none !important; }
+}
+
 .book-actions{display:flex;flex-direction:column;gap:10px;}
 .btn-ghost-dark{background:none;border:1px solid rgba(22,36,28,0.25);color:var(--ink);}
 .btn-ghost-dark:hover{border-color:var(--moss);}
@@ -484,11 +499,12 @@ img{max-width:100%;display:block;}
 /* ---------- Floating actions ---------- */
 .fab{
   position:fixed;right:26px;
-  width:56px;height:56px;border-radius:50%;
+  width:68px;height:68px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 10px 30px rgba(0,0,0,0.25);
   cursor:pointer;border:none;z-index:60;
 }
+.fab img{width:34px;height:34px;object-fit:contain;display:block;}
 .fab-whatsapp{bottom:26px;background:#25D366;color:#fff;}
 .fab-whatsapp::after{
   content:"";position:absolute;inset:0;border-radius:50%;

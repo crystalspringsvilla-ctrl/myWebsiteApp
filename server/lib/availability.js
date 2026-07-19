@@ -1,13 +1,12 @@
 const supabase = require('./supabase');
 const { getBusyRanges } = require('./googleCalendar');
 const { nightsBetween } = require('./pricing');
-
-const HOLD_MINUTES = 30; // how long an unpaid ("pending") booking blocks the dates while checkout is in progress
+const { HOLD_MINUTES } = require('./config');
 
 /**
  * Returns all currently-blocked date ranges, merged from:
  *  - paid bookings (always blocked)
- *  - pending bookings created in the last HOLD_MINUTES (temporary hold during checkout)
+ *  - pending bookings created within the last HOLD_MINUTES (temporary hold during checkout)
  *  - your Google Calendar (manual blocks)
  * Each range is {start, end, reason, source} with end EXCLUSIVE (a checkout date is bookable
  * as someone else's checkin date).

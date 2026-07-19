@@ -57,7 +57,38 @@ function nightlyBreakdown(checkin, checkout) {
  * @param {boolean} params.wantFood
  * @param {number} params.bbqKg
  */
-function computeQuote({ checkin, checkout, guests = BASE_GUESTS, wantFood = false, bbqKg = 0 }) {
+function applyCoupon(subtotal, coupon) {
+  if (!coupon || coupon.is_active === false) {
+    return { discountAmount: 0, couponCode: null, couponApplied: false };
+  }
+
+  const normalizedCode = (coupon.code || '').trim().toUpperCase();
+  const discountType = (coupon.discount_type || 'fixed').toLowerCase();
+  const minimumAmount = Number(coupon.min_amount || 0);
+  if (subtotal < minimumAmount) {
+    return { discountAmount: 0, couponCode: normalizedCode, couponApplied: false };
+  }
+
+  let discountAmount = 0;
+  if (discountType === 'percent') {
+    discountAmount = Math.round((subtotal * Number(coupon.discount_value || 0)) / 100);
+  } else {
+    discountAmount = Math.min(subtotal, Number(coupon.discount_value || 0));
+  }
+
+  const maxDiscount = Number(coupon.max_discount || 0);
+  if (maxDiscount > 0) {
+    discountAmount = Math.min(discountAmount, maxDiscount);
+  }
+
+  return {
+    discountAmount: Math.max(0, discountAmount),
+    couponCode: normalizedCode,
+    couponApplied: discountAmount > 0,
+  };
+}
+
+function computeQuote({ checkin, checkout, guests = BASE_GUESTS, wantFood = false, bbqKg = 0, coupon = null }) {
   const nights = nightsBetween(checkin, checkout);
   if (nights <= 0) throw new Error('Check-out must be after check-in');
   if (nights > 30) throw new Error('Stays longer than 30 nights should be booked directly — please contact us.');
@@ -74,7 +105,9 @@ function computeQuote({ checkin, checkout, guests = BASE_GUESTS, wantFood = fals
   const foodAmount = wantFood ? guestCount * FOOD_PER_PERSON_PER_DAY * nights : 0;
   const bbqAmount = bbq * BBQ_PER_KG;
 
-  const totalAmount = baseAmount + extraGuestAmount + foodAmount + bbqAmount;
+  const originalTotalAmount = baseAmount + extraGuestAmount + foodAmount + bbqAmount;
+  const couponState = applyCoupon(originalTotalAmount, coupon);
+  const totalAmount = Math.max(0, originalTotalAmount - couponState.discountAmount);
 
   return {
     nights,
@@ -87,6 +120,10 @@ function computeQuote({ checkin, checkout, guests = BASE_GUESTS, wantFood = fals
     foodAmount,
     bbqKg: bbq,
     bbqAmount,
+    originalTotalAmount,
+    discountAmount: couponState.discountAmount,
+    couponCode: couponState.couponCode,
+    couponApplied: couponState.couponApplied,
     totalAmount,
   };
 }
